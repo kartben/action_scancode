@@ -7,14 +7,14 @@ jobs:
     runs-on: ubuntu-latest
     name: Scan code for licenses
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
     - name: Scan the code
       id: scancode
       uses: zephyrproject-rtos/action_scancode@v2
       with:
         directory-to-scan: 'scan/'
     - name: Artifact Upload
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
       with:
         name: scancode
         path: ./artifacts
