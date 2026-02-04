@@ -46,17 +46,29 @@ def analyze_file(config_file, scancode_file, scanned_files_dir):
     check_langs = []
     with open(scancode_file, 'r') as json_fp:
         scancode_results = json.load(json_fp)
+
+        # Build a license key -> category mapping from license_references
+        # This is needed because the new scancode format (v32.0.0+) doesn't
+        # include category directly in the license detection results.
+        license_categories = {}
+        for lic_ref in scancode_results.get('license_references', []):
+            license_categories[lic_ref['key']] = lic_ref.get('category', 'Unknown')
+
         for file in scancode_results['files']:
             if file['type'] == 'directory':
                 continue
 
             orig_path = str(file['path']).replace(scanned_files_dir, '')
-            licenses = file['licenses']
+
+            # Get detected license expression directly from file
+            detected_license_expression = file.get('detected_license_expression', '')
+            license_detections = file.get('license_detections', [])
+
             file_type = file.get("file_type")
             kconfig = "Kconfig" in orig_path and file_type in ['ASCII text']
             check = False
 
-            if file.get("extension")[1:] in never_check_ext:
+            if file.get("extension", "")[1:] in never_check_ext:
                 check = False
             elif file.get("programming_language") in never_check_langs:
                 check = False
@@ -70,26 +82,72 @@ def analyze_file(config_file, scancode_file, scanned_files_dir):
                 check = True
 
             if check:
-                if not licenses and not report_missing_license:
+                if not detected_license_expression and not report_missing_license:
                     report += ("* {} missing license.\n".format(orig_path))
                 else:
-                    for lic in licenses:
-                        if lic['key'] not in more_lic:
-                            report += ("* {} has invalid license: {}\n".format(
-                                orig_path, lic['key']))
-                        if lic['category'] not in more_cat:
-                            report += ("* {} has invalid license type: {}\n".format(
-                                orig_path, lic['category']))
-                        if lic['key'] == 'unknown-spdx':
-                            report += ("* {} has unknown SPDX: {}\n".format(
-                                orig_path, lic['key']))
+                    # Collect all license keys from the license detections
+                    detected_keys = set()
+                    for detection in license_detections:
+                        # The license_expression may be compound (e.g., "mit AND apache-2.0")
+                        # Get individual license keys from the matches
+                        for match in detection.get('matches', []):
+                            lic_expr = match.get('license_expression', '')
+                            # Parse individual license keys from expression
+                            # Common operators: AND, OR, WITH
+                            # Simple approach: split by common operators
+                            keys = extract_license_keys(lic_expr)
+                            detected_keys.update(keys)
 
-                if check_copytight and not file['copyrights'] and \
+                    # Check each detected license key
+                    for key in detected_keys:
+                        if key not in more_lic:
+                            report += ("* {} has invalid license: {}\n".format(
+                                orig_path, key))
+                        category = license_categories.get(key, 'Unknown')
+                        if category not in more_cat:
+                            report += ("* {} has invalid license type: {}\n".format(
+                                orig_path, category))
+                        if key == 'unknown-spdx':
+                            report += ("* {} has unknown SPDX: {}\n".format(
+                                orig_path, key))
+
+                if check_copytight and not file.get('copyrights') and \
                         file.get("programming_language") != 'CMake':
                     report += ("* {} missing copyright.\n".format(orig_path))
 
 
     return(report)
+
+
+def extract_license_keys(license_expression):
+    """
+    Extract individual license keys from a license expression.
+
+    License expressions can contain operators like AND, OR, WITH.
+    This function splits the expression and returns the individual license keys.
+    """
+    if not license_expression:
+        return set()
+
+    # Replace common operators with a delimiter
+    expr = license_expression
+    for operator in [' AND ', ' OR ', ' WITH ']:
+        expr = expr.replace(operator, '|')
+
+    # Also handle lowercase versions
+    for operator in [' and ', ' or ', ' with ']:
+        expr = expr.replace(operator, '|')
+
+    # Split and clean up
+    keys = set()
+    for part in expr.split('|'):
+        key = part.strip()
+        # Remove parentheses that might be present in complex expressions
+        key = key.strip('()')
+        if key:
+            keys.add(key)
+
+    return keys
 
 
 def parse_args():

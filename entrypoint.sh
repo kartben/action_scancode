@@ -15,10 +15,10 @@ done
 
 mkdir -p /github/workspace/artifacts
 
-cd /scancode-toolkit
+cd /opt/scancode-toolkit
 ./scancode \
 	-clipeu \
-	--license --license-policy --license-text \
+	--license --license-text --license-references \
 	--classify \
 	--summary \
 	--verbose /github/workspace/$1 \
