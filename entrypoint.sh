@@ -2,6 +2,8 @@
 
 set -eu
 
+git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
 git config user.name "Automated Publisher"
 git config user.email "publish-to-github-action@users.noreply.github.com"
 
