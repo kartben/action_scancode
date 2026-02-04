@@ -13,7 +13,7 @@ for f in $files; do
 	cp --parents  $f ${1};
 done
 
-mkdir -p /github/workspace/artifacts
+mkdir -p $GITHUB_WORKSPACE/artifacts
 
 cd /opt/scancode-toolkit
 ./scancode \
@@ -21,10 +21,10 @@ cd /opt/scancode-toolkit
 	--license --license-text --license-references \
 	--classify \
 	--summary \
-	--verbose /github/workspace/$1 \
+	--verbose $GITHUB_WORKSPACE/$1 \
 	--processes `expr $(nproc --all) - 1` \
-	--json /github/workspace/artifacts/scancode.json \
-	--html /github/workspace/artifacts/scancode.html
+	--json $GITHUB_WORKSPACE/artifacts/scancode.json \
+	--html $GITHUB_WORKSPACE/artifacts/scancode.html
 
 
-python /license_check.py -c /github/workspace/.github/license_config.yml -s /github/workspace/artifacts/scancode.json  -f /github/workspace/$1 -o /github/workspace/artifacts/report.txt
+python /license_check.py -c $GITHUB_WORKSPACE/.github/license_config.yml -s $GITHUB_WORKSPACE/artifacts/scancode.json  -f $GITHUB_WORKSPACE/$1 -o $GITHUB_WORKSPACE/artifacts/report.txt
